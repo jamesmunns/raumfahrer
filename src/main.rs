@@ -1,6 +1,6 @@
 //! An application with one task
 #![deny(unsafe_code)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![feature(proc_macro)]
 #![no_std]
 
@@ -10,7 +10,12 @@ extern crate stm32f103xx;
 
 use cortex_m::peripheral::syst::SystClkSource;
 use rtfm::{app, Threshold};
-use stm32f103xx::GPIOC;
+use stm32f103xx::{GPIOC, SPI1};
+
+pub struct FakeSPI {
+    foo: u32,
+    bar: bool,
+}
 
 app! {
     device: stm32f103xx,
@@ -22,6 +27,8 @@ app! {
         // Declaration of resources looks exactly like declaration of static
         // variables
         static ON: bool = false;
+
+        static SPI: FakeSPI;
     },
 
     // Here tasks are declared
@@ -38,12 +45,12 @@ app! {
             // These are the resources this task has access to.
             //
             // The resources listed here must also appear in `app.resources`
-            resources: [ON],
+            resources: [ON, SPI],
         },
     }
 }
 
-fn init(mut p: init::Peripherals, r: init::Resources) {
+fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
     // `init` can modify all the `resources` declared in `app!`
     r.ON;
 
@@ -62,6 +69,10 @@ fn init(mut p: init::Peripherals, r: init::Resources) {
     p.core.SYST.set_reload(4_000_000); // 0.5s
     p.core.SYST.enable_interrupt();
     p.core.SYST.enable_counter();
+
+    init::LateResources {
+        SPI: FakeSPI{ foo: 42u32, bar: true },
+    }
 }
 
 fn idle() -> ! {
