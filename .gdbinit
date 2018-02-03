@@ -1,4 +1,4 @@
-target remote :3333
+target remote 172.17.0.1:3333
 
 # print demangled symbols by default
 set print asm-demangle on

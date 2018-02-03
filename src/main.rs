@@ -59,7 +59,7 @@ fn init(mut p: init::Peripherals, r: init::Resources) {
 
     // configure the system timer to generate one interrupt every second
     p.core.SYST.set_clock_source(SystClkSource::Core);
-    p.core.SYST.set_reload(8_000_000); // 1s
+    p.core.SYST.set_reload(4_000_000); // 0.5s
     p.core.SYST.enable_interrupt();
     p.core.SYST.enable_counter();
 }
