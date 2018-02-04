@@ -36,6 +36,8 @@ use hal::gpio::{Alternate, Input, Floating, PushPull};
 // Do stuff with SPI
 use ehal::spi::FullDuplex;
 
+mod dw1000;
+
 app! {
     device: stm32f103xx,
 
