@@ -13,7 +13,7 @@ use hal::stm32f103xx;
 
 use cortex_m::peripheral::syst::SystClkSource;
 use rtfm::{app, Threshold};
-use stm32f103xx::{SPI1, GPIOC};
+use stm32f103xx::{SPI1, GPIOC, USART1};
 
 // These let me use the `.constrain()` method
 use hal::rcc::RccExt;
@@ -28,6 +28,7 @@ use hal::spi::Spi;
 
 // Some imports to make type signatures shorter
 use hal::gpio::gpioa::{PA4, PA5, PA6, PA7};
+use hal::gpio::gpiob::{PB0};
 use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
 
 // Do stuff with SPI
@@ -36,6 +37,9 @@ use ehal::blocking::spi::Transfer;
 
 use hal::delay::Delay;
 use ehal::digital::OutputPin;
+
+use hal::serial::{Serial, Tx};
+use ehal::serial::Write;
 
 mod dw1000;
 
@@ -63,8 +67,9 @@ app! {
         // Declaration of resources looks exactly like declaration of static
         // variables
         static ON: bool = false;
-
         static RADIO: DWM1000;
+        static LOG: Tx<USART1>;
+        static TRIGGER: PB0<Output<PushPull>>;
     },
 
     // Here tasks are declared
@@ -81,15 +86,12 @@ app! {
             // These are the resources this task has access to.
             //
             // The resources listed here must also appear in `app.resources`
-            resources: [ON, RADIO],
+            resources: [ON, RADIO, LOG, TRIGGER],
         },
     }
 }
 
-fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
-    // `init` can modify all the `resources` declared in `app!`
-    r.ON;
-
+fn init(mut p: init::Peripherals, _r: init::Resources) -> init::LateResources {
     // power on GPIOC
     p.device.RCC.apb2enr.modify(|_, w| w.iopcen().enabled());
 
@@ -118,26 +120,63 @@ fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
         .pclk1(32.mhz())
         .freeze(&mut flash.acr);
 
+    let mut delay = Delay::new(p.core.SYST, clocks);
+
+    // Trigger for debugging with the logic analyzer
+    let mut gpiob = p.device.GPIOB.split(&mut rcc.apb2);
+    let mut trig = gpiob.pb0.into_push_pull_output(&mut gpiob.crl);
+
+    // For now, set trigger on device boot
+    use ehal::blocking::delay::DelayMs;
+    trig.set_low();
+    delay.delay_ms(1u8);
+    trig.set_high();
+
+
     // SPI
     let nss = gpioa.pa4.into_push_pull_output(&mut gpioa.crl);
     let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
     let miso = gpioa.pa6;
     let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
-    let mut delay = Delay::new(p.core.SYST, clocks);
 
     let spi = Spi::spi1(
         p.device.SPI1,
         (sck, miso, mosi),
         &mut afio.mapr,
         dw1000::DEFAULT_SPI_MODE,
-        1_u32.mhz(),
+        1_u32.mhz(), // TODO, this could be higher (3-20Mhz), but okay for now
         clocks, // TODO - Is this right?
         &mut rcc.apb2,
     );
 
+    // NOTE: 10ms delay expected here during boot sequence
     let dwm = dw1000::new(spi, nss, &mut delay).unwrap();
 
-    init::LateResources { RADIO: dwm }
+    // USART for logging output until I figure out how to log over semihosting
+    let pa9 = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let pa10 = gpioa.pa10;
+
+    let serial = Serial::usart1(
+        p.device.USART1,
+        (pa9, pa10),
+        &mut afio.mapr,
+        115_200.bps(),
+        clocks,
+        &mut rcc.apb2,
+    );
+
+    let (mut tx, _rx) = serial.split();
+
+    // Say hello to test the interface
+    for _ in 0..3 {
+        let _ = tx.write(0xAC);
+    }
+
+    init::LateResources {
+        RADIO: dwm,
+        LOG: tx,
+        TRIGGER: trig,
+    }
 }
 
 fn idle() -> ! {
