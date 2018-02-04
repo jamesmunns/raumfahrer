@@ -27,12 +27,12 @@ incremental = false
 lto = true
 debug = true
 
+[dependencies.embedded-hal]
+version = "0.1.0"
+
 [dependencies.stm32f103xx-hal]
 git = "https://github.com/japaric/stm32f103xx-hal"
 features = ["rt"]
-
-[dependencies.stm32f103xx]
-version = "0.8"
 
 [dependencies.cortex-m]
 version = "0.4.0"

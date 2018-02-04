@@ -6,16 +6,35 @@
 
 extern crate cortex_m;
 extern crate cortex_m_rtfm as rtfm;
-extern crate stm32f103xx;
+extern crate stm32f103xx_hal as hal;
+extern crate embedded_hal as ehal;
+
+use hal::stm32f103xx;
 
 use cortex_m::peripheral::syst::SystClkSource;
 use rtfm::{app, Threshold};
 use stm32f103xx::{GPIOC, SPI1};
 
-pub struct FakeSPI {
-    foo: u32,
-    bar: bool,
-}
+// These let me use the `.constrain()` method
+use hal::rcc::RccExt;
+use hal::gpio::GpioExt;
+use hal::afio::AfioExt;
+use hal::flash::FlashExt; // This probably isn't necessary...
+
+// This lets me use the .mhz() method
+use hal::time::U32Ext;
+
+use hal::spi::Spi;
+
+// TODO, these probable should live in the driver
+use ehal::spi::{Mode, Polarity, Phase};
+
+// Some imports to make type signatures shorter
+use hal::gpio::gpioa::{PA5, PA6, PA7};
+use hal::gpio::{Alternate, Input, Floating, PushPull};
+
+// Do stuff with SPI
+use ehal::spi::FullDuplex;
 
 app! {
     device: stm32f103xx,
@@ -28,7 +47,11 @@ app! {
         // variables
         static ON: bool = false;
 
-        static SPI: FakeSPI;
+        static SPI: Spi<SPI1, (
+            PA5<Alternate<PushPull>>,
+            PA6<Input<Floating>>,
+            PA7<Alternate<PushPull>>
+        )>;
     },
 
     // Here tasks are declared
@@ -66,12 +89,44 @@ fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
 
     // configure the system timer to generate one interrupt every second
     p.core.SYST.set_clock_source(SystClkSource::Core);
-    p.core.SYST.set_reload(4_000_000); // 0.5s
+    p.core.SYST.set_reload(64_000_000); // TODO - This changed with the `clocks` stuff below
     p.core.SYST.enable_interrupt();
     p.core.SYST.enable_counter();
 
+
+    // AJM - DEMO SPI
+    // TODO: Figure out what these settings are, instead of copy/paste
+    //         from japaric's zen project
+    let mut rcc = p.device.RCC.constrain();
+    let mut gpioa = p.device.GPIOA.split(&mut rcc.apb2);
+    let mut afio = p.device.AFIO.constrain(&mut rcc.apb2);
+    let mut flash = p.device.FLASH.constrain();
+    let clocks = rcc.cfgr
+        .sysclk(64.mhz())
+        .pclk1(32.mhz())
+        .freeze(&mut flash.acr);
+
+    // SPI
+    let nss = gpioa.pa4.into_push_pull_output(&mut gpioa.crl);
+    let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
+    let miso = gpioa.pa6;
+    let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
+
+    let spi = Spi::spi1(
+        p.device.SPI1,
+        (sck, miso, mosi),
+        &mut afio.mapr,
+        Mode {                                      // TODO - read datasheet for SPI settings
+            polarity: Polarity::IdleLow,            // TODO - read datasheet for SPI settings
+            phase: Phase::CaptureOnFirstTransition, // TODO - read datasheet for SPI settings
+        },                                          // TODO - read datasheet for SPI settings
+        1_u32.mhz(),                                // TODO - read datasheet for SPI settings
+        clocks,                                     // TODO - Is this right?
+        &mut rcc.apb2,
+    );
+
     init::LateResources {
-        SPI: FakeSPI{ foo: 42u32, bar: true },
+        SPI: spi,
     }
 }
 
@@ -105,4 +160,8 @@ fn sys_tick(_t: &mut Threshold, mut r: SYS_TICK::Resources) {
             (*GPIOC::ptr()).bsrr.write(|w| w.br13().reset());
         }
     }
+
+    // TODO: This is only PoC code
+    r.SPI.send(0x42);
+    let _ = r.SPI.read();
 }
