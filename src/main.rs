@@ -6,14 +6,14 @@
 
 extern crate cortex_m;
 extern crate cortex_m_rtfm as rtfm;
-extern crate stm32f103xx_hal as hal;
 extern crate embedded_hal as ehal;
+extern crate stm32f103xx_hal as hal;
 
 use hal::stm32f103xx;
 
 use cortex_m::peripheral::syst::SystClkSource;
 use rtfm::{app, Threshold};
-use stm32f103xx::{GPIOC, SPI1};
+use stm32f103xx::{SPI1, GPIOC};
 
 // These let me use the `.constrain()` method
 use hal::rcc::RccExt;
@@ -26,17 +26,32 @@ use hal::time::U32Ext;
 
 use hal::spi::Spi;
 
-// TODO, these probable should live in the driver
-use ehal::spi::{Mode, Polarity, Phase};
-
 // Some imports to make type signatures shorter
-use hal::gpio::gpioa::{PA5, PA6, PA7};
-use hal::gpio::{Alternate, Input, Floating, PushPull};
+use hal::gpio::gpioa::{PA4, PA5, PA6, PA7};
+use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
 
 // Do stuff with SPI
 use ehal::spi::FullDuplex;
+use ehal::blocking::spi::Transfer;
+
+use hal::delay::Delay;
+use ehal::digital::OutputPin;
 
 mod dw1000;
+
+use dw1000::registers;
+
+type DWM1000 = dw1000::Dw1000<
+    Spi<
+        SPI1,
+        (
+            PA5<Alternate<PushPull>>,
+            PA6<Input<Floating>>,
+            PA7<Alternate<PushPull>>,
+        ),
+    >,
+    PA4<Output<PushPull>>,
+>;
 
 app! {
     device: stm32f103xx,
@@ -49,11 +64,7 @@ app! {
         // variables
         static ON: bool = false;
 
-        static SPI: Spi<SPI1, (
-            PA5<Alternate<PushPull>>,
-            PA6<Input<Floating>>,
-            PA7<Alternate<PushPull>>
-        )>;
+        static RADIO: DWM1000;
     },
 
     // Here tasks are declared
@@ -70,7 +81,7 @@ app! {
             // These are the resources this task has access to.
             //
             // The resources listed here must also appear in `app.resources`
-            resources: [ON, SPI],
+            resources: [ON, RADIO],
         },
     }
 }
@@ -95,7 +106,6 @@ fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
     p.core.SYST.enable_interrupt();
     p.core.SYST.enable_counter();
 
-
     // AJM - DEMO SPI
     // TODO: Figure out what these settings are, instead of copy/paste
     //         from japaric's zen project
@@ -113,23 +123,21 @@ fn init(mut p: init::Peripherals, r: init::Resources) -> init::LateResources {
     let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
     let miso = gpioa.pa6;
     let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
+    let mut delay = Delay::new(p.core.SYST, clocks);
 
     let spi = Spi::spi1(
         p.device.SPI1,
         (sck, miso, mosi),
         &mut afio.mapr,
-        Mode {                                      // TODO - read datasheet for SPI settings
-            polarity: Polarity::IdleLow,            // TODO - read datasheet for SPI settings
-            phase: Phase::CaptureOnFirstTransition, // TODO - read datasheet for SPI settings
-        },                                          // TODO - read datasheet for SPI settings
-        1_u32.mhz(),                                // TODO - read datasheet for SPI settings
-        clocks,                                     // TODO - Is this right?
+        dw1000::DEFAULT_SPI_MODE,
+        1_u32.mhz(),
+        clocks, // TODO - Is this right?
         &mut rcc.apb2,
     );
 
-    init::LateResources {
-        SPI: spi,
-    }
+    let dwm = dw1000::new(spi, nss, &mut delay).unwrap();
+
+    init::LateResources { RADIO: dwm }
 }
 
 fn idle() -> ! {
@@ -164,6 +172,17 @@ fn sys_tick(_t: &mut Threshold, mut r: SYS_TICK::Resources) {
     }
 
     // TODO: This is only PoC code
-    r.SPI.send(0x42);
-    let _ = r.SPI.read();
+    r.RADIO.ncs.set_low();
+    let _yolo = r.RADIO
+        .spi
+        .send(registers::DEV_ID::BASE | registers::READ_MASK | registers::NO_SUB_INDEX_MASK);
+
+    let _ = r.RADIO.spi.read();
+
+    let mut buf = [0x0u8; 4];
+    let _ = r.RADIO.spi.transfer(&mut buf);
+
+    r.RADIO.ncs.set_high();
+
+    // TODO assert decawave id in buf
 }
