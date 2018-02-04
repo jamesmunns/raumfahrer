@@ -32,7 +32,6 @@ use hal::gpio::gpiob::{PB0};
 use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
 
 // Do stuff with SPI
-use ehal::spi::FullDuplex;
 use ehal::blocking::spi::Transfer;
 
 use hal::delay::Delay;
@@ -86,7 +85,12 @@ app! {
             // These are the resources this task has access to.
             //
             // The resources listed here must also appear in `app.resources`
-            resources: [ON, RADIO, LOG, TRIGGER],
+            resources: [
+                ON,
+                RADIO,
+                LOG,
+                TRIGGER
+            ],
         },
     }
 }
@@ -122,14 +126,14 @@ fn init(mut p: init::Peripherals, _r: init::Resources) -> init::LateResources {
 
     let mut delay = Delay::new(p.core.SYST, clocks);
 
-    // Trigger for debugging with the logic analyzer
+    // // Trigger for debugging with the logic analyzer
     let mut gpiob = p.device.GPIOB.split(&mut rcc.apb2);
     let mut trig = gpiob.pb0.into_push_pull_output(&mut gpiob.crl);
 
-    // For now, set trigger on device boot
-    use ehal::blocking::delay::DelayMs;
+    // // For now, set trigger on device boot
+    // use ehal::blocking::delay::DelayMs;
     trig.set_low();
-    delay.delay_ms(1u8);
+    // delay.delay_ms(1u8);
     trig.set_high();
 
 
@@ -150,7 +154,7 @@ fn init(mut p: init::Peripherals, _r: init::Resources) -> init::LateResources {
     );
 
     // NOTE: 10ms delay expected here during boot sequence
-    let dwm = dw1000::new(spi, nss, &mut delay).unwrap();
+    let mut dwm = dw1000::new(spi, nss, &mut delay).unwrap();
 
     // USART for logging output until I figure out how to log over semihosting
     let pa9 = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
@@ -171,6 +175,8 @@ fn init(mut p: init::Peripherals, _r: init::Resources) -> init::LateResources {
     for _ in 0..3 {
         let _ = tx.write(0xAC);
     }
+
+    dwm.ncs.set_low();
 
     init::LateResources {
         RADIO: dwm,
@@ -210,18 +216,19 @@ fn sys_tick(_t: &mut Threshold, mut r: SYS_TICK::Resources) {
         }
     }
 
-    // TODO: This is only PoC code
-    r.RADIO.ncs.set_low();
-    let _yolo = r.RADIO
-        .spi
-        .send(registers::DEV_ID::BASE | registers::READ_MASK | registers::NO_SUB_INDEX_MASK);
-
-    let _ = r.RADIO.spi.read();
-
     let mut buf = [0x0u8; 4];
+
+    buf[0] = registers::DEV_ID::BASE | registers::READ_MASK | registers::NO_SUB_INDEX_MASK;
+
+    // r.RADIO.ncs.set_low();
+    // TODO: Is delay necessary here?
+    let _ = r.RADIO.spi.transfer(&mut buf[0..1]);
+    buf[0] = 0u8;
     let _ = r.RADIO.spi.transfer(&mut buf);
 
-    r.RADIO.ncs.set_high();
+    r.LOG.write(buf[3]); // TODO use blocking trait?
+
+    // r.RADIO.ncs.set_high();
 
     // TODO assert decawave id in buf
 }

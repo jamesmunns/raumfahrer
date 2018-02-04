@@ -34,7 +34,7 @@ where
 {
     // Give the radio time to power on and lock PLLs
     // (User Manual Sec 2.3.2)
-    delay.delay_ms(10);
+    // delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
 
     // TODO - Make sure registers::DEV_ID::BASE reads 0xDECA0130
 
