@@ -1,8 +1,12 @@
+
+
 //! An application with one task
 #![deny(unsafe_code)]
 // #![deny(warnings)]
 #![feature(proc_macro)]
 #![no_std]
+
+extern crate cortex_m_semihosting as sh;
 
 extern crate cortex_m;
 extern crate cortex_m_rtfm as rtfm;
@@ -199,6 +203,13 @@ fn idle() -> ! {
 // has one field per resource declared in `app!`.
 #[allow(unsafe_code)]
 fn sys_tick(_t: &mut Threshold, mut r: SYS_TICK::Resources) {
+    {
+        let mut hstdout = hio::hstdout().unwrap();
+        use core::fmt::Write;
+        use sh::hio;
+        writeln!(hstdout, "Hello, world!").unwrap();
+    }
+
     // toggle state
     *r.ON = !*r.ON;
 
