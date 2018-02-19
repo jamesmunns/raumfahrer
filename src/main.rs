@@ -27,11 +27,15 @@ use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
 
 use hal::serial::Tx;
 
+#[macro_use]
+extern crate nb;
+
 mod dw1000;
 mod tick;
 mod startup;
 
-type DWM1000 = dw1000::Dw1000<
+type DWM1000<'a> = dw1000::Dw1000<
+    'a,
     Spi<
         SPI1,
         (

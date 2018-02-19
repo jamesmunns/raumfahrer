@@ -16,29 +16,46 @@
 
 use ehal::blocking::delay::DelayMs;
 use ehal::blocking::spi;
-use ehal::digital::OutputPin;
+use ehal::digital::{OutputPin};
 use ehal::spi::{Mode, Phase, Polarity};
+
+// TODO - this prevents generic usage
+use hal::gpio::gpiob::PB1;
+use hal::gpio::{Input, Output, Floating, PushPull};
+use hal::gpio::gpiob::CRL;
 
 pub mod registers;
 
-pub struct Dw1000<SPI, NCS> {
+pub struct Dw1000<'a, SPI, NCS> {
     pub spi: SPI, // TODO - remove pub once theres a good accessor fn
     pub ncs: NCS, // TODO - remove pub once theres a good accessor fn
+    pub rst: PB1<Input<Floating>>,
+    pub _crl: &'a mut CRL,
 }
 
-pub fn new<SPI, NCS, D, E>(spi: SPI, ncs: NCS, _delay: &mut D) -> Result<Dw1000<SPI, NCS>, E>
+pub fn new<'a, SPI, NCS, D, E>(spi: SPI, ncs: NCS, rst: PB1<Input<Floating>>, crl: &'a mut CRL, delay: &mut D) -> Result<Dw1000<'a, SPI, NCS>, E>
 where
     D: DelayMs<u8>,
     NCS: OutputPin,
     SPI: spi::Write<u8, Error = E> + spi::Transfer<u8, Error = E>,
 {
+    let mut rst = rst.into_push_pull_output(crl);
+    rst.set_low();
+    delay.delay_ms(3);
+    let rst = rst.into_floating_input(crl);
+
     // Give the radio time to power on and lock PLLs
     // (User Manual Sec 2.3.2)
-    // delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
+    delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
 
     // TODO - Make sure registers::DEV_ID::BASE reads 0xDECA0130
 
-    let dw1000 = Dw1000 { spi, ncs };
+    let dw1000 = Dw1000 {
+        spi,
+        ncs,
+        rst,
+        _crl: crl,
+    };
 
     // TODO - Any init necessary?
 

@@ -19,16 +19,14 @@ pub fn sys_tick(
     // _t: &mut Threshold,
     // mut r: ::SYS_TICK::Resources
 ) {
-
+    let mut hstdout = hio::hstdout().unwrap();
+    use core::fmt::Write;
+    use sh::hio;
+    writeln!(hstdout, "Hello, world!").unwrap();
 }
 
 
-// {
-//     let mut hstdout = hio::hstdout().unwrap();
-//     use core::fmt::Write;
-//     use sh::hio;
-//     writeln!(hstdout, "Hello, world!").unwrap();
-// }
+
 
 // // toggle state
 // *r.ON = !*r.ON;
