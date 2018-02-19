@@ -16,12 +16,12 @@
 
 use ehal::blocking::delay::DelayMs;
 use ehal::blocking::spi;
-use ehal::digital::{OutputPin};
+use ehal::digital::OutputPin;
 use ehal::spi::{Mode, Phase, Polarity};
 
 // TODO - this prevents generic usage
 use hal::gpio::gpiob::PB1;
-use hal::gpio::{Input, Output, Floating, PushPull};
+use hal::gpio::{Floating, Input, Output, PushPull};
 use hal::gpio::gpiob::CRL;
 
 pub mod registers;
@@ -33,7 +33,13 @@ pub struct Dw1000<'a, SPI, NCS> {
     pub _crl: &'a mut CRL,
 }
 
-pub fn new<'a, SPI, NCS, D, E>(spi: SPI, ncs: NCS, rst: PB1<Input<Floating>>, crl: &'a mut CRL, delay: &mut D) -> Result<Dw1000<'a, SPI, NCS>, E>
+pub fn new<'a, SPI, NCS, D, E>(
+    spi: SPI,
+    mut ncs: NCS, // why is this mut? Its owned...
+    rst: PB1<Input<Floating>>,
+    crl: &'a mut CRL,
+    delay: &mut D,
+) -> Result<Dw1000<'a, SPI, NCS>, E>
 where
     D: DelayMs<u8>,
     NCS: OutputPin,
@@ -41,6 +47,7 @@ where
 {
     let mut rst = rst.into_push_pull_output(crl);
     rst.set_low();
+    ncs.set_high();
     delay.delay_ms(3);
     let rst = rst.into_floating_input(crl);
 

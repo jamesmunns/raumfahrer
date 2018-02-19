@@ -19,12 +19,12 @@ use ehal::serial::Write;
 
 use dw1000;
 
-// use dw1000::registers;
+use dw1000::registers;
+use ehal::blocking::spi::Transfer;
 
 pub fn init(
-    mut p: ::init::Peripherals,
-    // _r: ::init::Resources
-// ) -> ::init::LateResources {
+    mut p: ::init::Peripherals // _r: ::init::Resources
+                               // ) -> ::init::LateResources {
 ) {
     // Okay, first lets just get the clocks powered on, and do a short PoC
     let mut rcc = p.device.RCC.constrain();
@@ -113,7 +113,7 @@ pub fn init(
             &mut afio.mapr,
             dw1000::DEFAULT_SPI_MODE,
             1_u32.mhz(), // TODO, this could be higher (3-20Mhz), but okay for now
-            clocks, // TODO - Is this right?
+            clocks,      // TODO - Is this right?
             &mut rcc.apb2,
         );
 
@@ -121,52 +121,70 @@ pub fn init(
         let mut dwm = dw1000::new(spi, nss, gpiob.pb1, &mut gpiob.crl, &mut delay).unwrap();
 
 
+        let mut buf = [0x0u8; 4];
+
+        buf[0] = registers::DEV_ID::BASE | registers::READ_MASK | registers::NO_SUB_INDEX_MASK;
+
+        dwm.ncs.set_low();
+        delay.delay_ms(1u8);
+        // TODO: Is delay necessary here?
+        dwm.spi.transfer(&mut buf[0..1]).unwrap();
+        buf[0] = 0u8;
+        dwm.spi.transfer(&mut buf).unwrap();
+        delay.delay_ms(1u8);
+        dwm.ncs.set_high();
+
+        for b in buf.iter() {
+            block!(tx.write(*b)).unwrap();
+        }
+        block!(tx.flush()).unwrap();
+
         // Mark end of function in logic analyzer
         trig_la.set_high();
     }
 }
 
-    // // power on GPIOC
-    // p.device.RCC.apb2enr.modify(|_, w| w.iopcen().enabled());
+// // power on GPIOC
+// p.device.RCC.apb2enr.modify(|_, w| w.iopcen().enabled());
 
-    // // configure PC13 as output
-    // p.device.GPIOC.bsrr.write(|w| w.bs13().set());
-    // p.device
-    //     .GPIOC
-    //     .crh
-    //     .modify(|_, w| w.mode13().output().cnf13().push());
+// // configure PC13 as output
+// p.device.GPIOC.bsrr.write(|w| w.bs13().set());
+// p.device
+//     .GPIOC
+//     .crh
+//     .modify(|_, w| w.mode13().output().cnf13().push());
 
-    // // AJM - DEMO SPI
-    // // TODO: Figure out what these settings are, instead of copy/paste
-    // //         from japaric's zen project
-    // let mut rcc = p.device.RCC.constrain();
-
-
-    // // SPI
-    // let nss = gpioa.pa4.into_push_pull_output(&mut gpioa.crl);
-    // let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
-    // let miso = gpioa.pa6;
-    // let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
-
-    // let spi = Spi::spi1(
-    //     p.device.SPI1,
-    //     (sck, miso, mosi),
-    //     &mut afio.mapr,
-    //     dw1000::DEFAULT_SPI_MODE,
-    //     1_u32.mhz(), // TODO, this could be higher (3-20Mhz), but okay for now
-    //     clocks, // TODO - Is this right?
-    //     &mut rcc.apb2,
-    // );
-
-    // // NOTE: 10ms delay expected here during boot sequence
-    // let mut dwm = dw1000::new(spi, nss, &mut delay).unwrap();
+// // AJM - DEMO SPI
+// // TODO: Figure out what these settings are, instead of copy/paste
+// //         from japaric's zen project
+// let mut rcc = p.device.RCC.constrain();
 
 
+// // SPI
+// let nss = gpioa.pa4.into_push_pull_output(&mut gpioa.crl);
+// let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
+// let miso = gpioa.pa6;
+// let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
 
-    // dwm.ncs.set_low();
+// let spi = Spi::spi1(
+//     p.device.SPI1,
+//     (sck, miso, mosi),
+//     &mut afio.mapr,
+//     dw1000::DEFAULT_SPI_MODE,
+//     1_u32.mhz(), // TODO, this could be higher (3-20Mhz), but okay for now
+//     clocks, // TODO - Is this right?
+//     &mut rcc.apb2,
+// );
 
-    // ::init::LateResources {
-    //     RADIO: dwm,
-    //     LOG: tx,
-    //     TRIGGER: trig,
-    // }
+// // NOTE: 10ms delay expected here during boot sequence
+// let mut dwm = dw1000::new(spi, nss, &mut delay).unwrap();
+
+
+
+// dwm.ncs.set_low();
+
+// ::init::LateResources {
+//     RADIO: dwm,
+//     LOG: tx,
+//     TRIGGER: trig,
+// }

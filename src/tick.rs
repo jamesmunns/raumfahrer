@@ -15,10 +15,7 @@ use dw1000::registers;
 // `r` is the set of resources this task has access to. `SYS_TICK::Resources`
 // has one field per resource declared in `app!`.
 #[allow(unsafe_code)]
-pub fn sys_tick(
-    // _t: &mut Threshold,
-    // mut r: ::SYS_TICK::Resources
-) {
+pub fn sys_tick() {
     let mut hstdout = hio::hstdout().unwrap();
     use core::fmt::Write;
     use sh::hio;

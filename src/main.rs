@@ -1,5 +1,3 @@
-
-
 //! An application with one task
 #![deny(unsafe_code)]
 // #![deny(warnings)]
@@ -22,7 +20,7 @@ use hal::spi::Spi;
 
 // Some imports to make type signatures shorter
 use hal::gpio::gpioa::{PA4, PA5, PA6, PA7};
-use hal::gpio::gpiob::{PB0};
+use hal::gpio::gpiob::PB0;
 use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
 
 use hal::serial::Tx;
