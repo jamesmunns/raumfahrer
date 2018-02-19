@@ -49,14 +49,14 @@ app! {
     // Here data resources are declared
     //
     // Data resources are static variables that are safe to share across tasks
-    resources: {
-        // Declaration of resources looks exactly like declaration of static
-        // variables
-        static ON: bool = false;
-        static RADIO: DWM1000;
-        static LOG: Tx<USART1>;
-        static TRIGGER: PB0<Output<PushPull>>;
-    },
+    // resources: {
+    //     // Declaration of resources looks exactly like declaration of static
+    //     // variables
+    //     static ON: bool = false;
+    //     static RADIO: DWM1000;
+    //     static LOG: Tx<USART1>;
+    //     static TRIGGER: PB0<Output<PushPull>>;
+    // },
 
     init: {
         path: startup::init,
@@ -73,15 +73,15 @@ app! {
             // Path to the task handler
             path: tick::sys_tick,
 
-            // These are the resources this task has access to.
-            //
-            // The resources listed here must also appear in `app.resources`
-            resources: [
-                ON,
-                RADIO,
-                LOG,
-                TRIGGER
-            ],
+            // // These are the resources this task has access to.
+            // //
+            // // The resources listed here must also appear in `app.resources`
+            // resources: [
+            //     ON,
+            //     RADIO,
+            //     LOG,
+            //     TRIGGER
+            // ],
         },
     }
 }
