@@ -26,7 +26,7 @@ pub struct Dw1000<SPI, NCS> {
     pub ncs: NCS, // TODO - remove pub once theres a good accessor fn
 }
 
-pub fn new<SPI, NCS, D, E>(spi: SPI, ncs: NCS, delay: &mut D) -> Result<Dw1000<SPI, NCS>, E>
+pub fn new<SPI, NCS, D, E>(spi: SPI, ncs: NCS, _delay: &mut D) -> Result<Dw1000<SPI, NCS>, E>
 where
     D: DelayMs<u8>,
     NCS: OutputPin,
