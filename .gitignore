@@ -3,3 +3,7 @@
 Cargo.lock
 target/
 .pide
+
+# I am working on these inside of the same folder
+nrf52/
+nrf52-hal/

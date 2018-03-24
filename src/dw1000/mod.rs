@@ -19,55 +19,57 @@ use ehal::blocking::spi;
 use ehal::digital::OutputPin;
 use ehal::spi::{Mode, Phase, Polarity};
 
-// TODO - this prevents generic usage
-use hal::gpio::gpiob::PB1;
-use hal::gpio::{Floating, Input, Output, PushPull};
-use hal::gpio::gpiob::CRL;
+// // TODO - this prevents generic usage
+// use hal::gpio::gpiob::PB1;
+// use hal::gpio::{Floating, Input, Output, PushPull};
+// use hal::gpio::gpiob::CRL;
 
-pub mod registers;
+// pub mod registers;
 
-pub struct Dw1000<'a, SPI, NCS> {
-    pub spi: SPI, // TODO - remove pub once theres a good accessor fn
-    pub ncs: NCS, // TODO - remove pub once theres a good accessor fn
-    pub rst: PB1<Input<Floating>>,
-    pub _crl: &'a mut CRL,
-}
+// pub struct Dw1000<'a, SPI, NCS> {
+//     pub spi: SPI, // TODO - remove pub once theres a good accessor fn
+//     pub ncs: NCS, // TODO - remove pub once theres a good accessor fn
+//     pub rst: PB1<Input<Floating>>,
+//     pub _crl: &'a mut CRL,
+// }
 
-pub fn new<'a, SPI, NCS, D, E>(
-    spi: SPI,
-    mut ncs: NCS, // why is this mut? Its owned...
-    rst: PB1<Input<Floating>>,
-    crl: &'a mut CRL,
-    delay: &mut D,
-) -> Result<Dw1000<'a, SPI, NCS>, E>
-where
-    D: DelayMs<u8>,
-    NCS: OutputPin,
-    SPI: spi::Write<u8, Error = E> + spi::Transfer<u8, Error = E>,
-{
-    let mut rst = rst.into_push_pull_output(crl);
-    rst.set_low();
-    ncs.set_high();
-    delay.delay_ms(3);
-    let rst = rst.into_floating_input(crl);
+// pub fn new<'a, SPI, NCS, D, E>(
+//     spi: SPI,
+//     mut ncs: NCS, // why is this mut? Its owned...
+//     rst: PB1<Input<Floating>>,
+//     crl: &'a mut CRL,
+//     delay: &mut D,
+// ) -> Result<Dw1000<'a, SPI, NCS>, E>
+// where
+//     D: DelayMs<u8>,
+//     NCS: OutputPin,
+//     SPI: spi::Write<u8, Error = E> + spi::Transfer<u8, Error = E>,
+// {
+//     delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
 
-    // Give the radio time to power on and lock PLLs
-    // (User Manual Sec 2.3.2)
-    delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
+//     let mut rst = rst.into_push_pull_output(crl);
+//     rst.set_low();
+//     ncs.set_high();
+//     delay.delay_ms(5);
+//     let rst = rst.into_floating_input(crl);
 
-    // TODO - Make sure registers::DEV_ID::BASE reads 0xDECA0130
+//     // Give the radio time to power on and lock PLLs
+//     // (User Manual Sec 2.3.2)
+//     delay.delay_ms(10); // TODO AJM TROUBLESHOOTING
 
-    let dw1000 = Dw1000 {
-        spi,
-        ncs,
-        rst,
-        _crl: crl,
-    };
+//     // TODO - Make sure registers::DEV_ID::BASE reads 0xDECA0130
 
-    // TODO - Any init necessary?
+//     let dw1000 = Dw1000 {
+//         spi,
+//         ncs,
+//         rst,
+//         _crl: crl,
+//     };
 
-    Ok(dw1000)
-}
+//     // TODO - Any init necessary?
+
+//     Ok(dw1000)
+// }
 
 // With dw1000 GPIO5 and GPIO6 floating or pulled low, the default SPI mode is:
 // "Data is sampled on the rising (first) edge of the clock and launched on the

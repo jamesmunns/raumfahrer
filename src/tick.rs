@@ -1,12 +1,12 @@
 use rtfm::Threshold;
-use stm32f103xx::GPIOC;
+// use stm32f103xx::GPIOC;
 
 // Do stuff with SPI
 use ehal::blocking::spi::Transfer;
 
 use ehal::serial::Write;
 
-use dw1000::registers;
+// use dw1000::registers;
 
 // This is the task handler of the SYS_TICK exception
 //
@@ -15,11 +15,22 @@ use dw1000::registers;
 // `r` is the set of resources this task has access to. `SYS_TICK::Resources`
 // has one field per resource declared in `app!`.
 #[allow(unsafe_code)]
-pub fn sys_tick() {
-    let mut hstdout = hio::hstdout().unwrap();
-    use core::fmt::Write;
-    use sh::hio;
-    writeln!(hstdout, "Hello, world!").unwrap();
+pub fn sys_tick(
+    // _t: &mut Threshold,
+    // mut r: ::SYS_TICK::Resources
+) {
+    use ehal::digital::OutputPin;
+
+    // let mut hstdout = hio::hstdout().unwrap();
+    // use core::fmt::Write;
+    // use sh::hio;
+    // writeln!(hstdout, "Hello, world!").unwrap();
+
+    // if r.LED.is_high() {
+    //     r.LED.set_low();
+    // } else {
+    //     r.LED.set_high();
+    // }
 }
 
 
